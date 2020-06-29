@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+    <head>  
+        
+        <script src="http://code.jquery.com/jquery-1.11.0.min.js">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.9.1/jquery-ui.min.js">
+        </script>
+        
+        <style type="text/css">
+
+        body {
+          font: 14px "Open Sans", "courier", sans-serif;
+        }
+
+        video {
+          margin-top: 2px;
+          border: 1px solid black;
+        }
+        input { padding: 12px; margin: 3px 0; border: 1px solid #ddd; 
+    		border-radius: 4px; }
+		input[type=button] { 
+    		cursor: pointer;
+          display: block;
+          width: 160px;
+          border: 1px solid black;
+          font-size: 16px;
+    		cursor: pointer;
+    		 padding-top: 2px;
+          padding-bottom: 4px;
+          color: white;
+          background-color: darkgreen;
+          font-family: courier
+          text-decoration: none;
+   		    position: relative;
+            left: 820px;
+		}
+        .button {
+          cursor: pointer;
+          display: block;
+          width: 160px;
+          border: 1px solid black;
+          font-size: 16px;
+          text-align: center;
+          margin-top: 10px;
+
+          padding-top: 2px;
+          padding-bottom: 4px;
+          color: white;
+          background-color: darkgreen;
+          text-decoration: none;
+        }
+
+        h2 {
+          margin-bottom: 10px;
+          font-family: courier;
+
+        }
+
+        h1 {
+          font-family: courier;
+          }
+
+        .left {
+          margin-right: 40px;
+          float: left;
+          width: 160px;
+          padding: 0px;
+        }
+
+        .right {
+          margin-left: 300px;
+          float: left;
+          width: 160px;
+          padding: 0px;
+        }
+
+        .bottom {
+          clear: both;
+          padding-top: 30px;
+        }
+        .tex{
+            padding: 5px;
+            margin-left: 800px;
+            margin-right: 29px;
+            position: absolute;
+            width: 220px;
+        }
+        </style>
+
+    </head>
+
+    <h1> Conversion Engine For Deaf and Dumb</h1>
+
+    <body>
+
+     
+      <p>{{ output }}</p>
+      <br>
+
+     <div class="left">
+        <div id="startButton" class="button"> Start </div>
+        <h2>Preview</h2>
+        <video id="preview" width="400" height="300" autoplay muted></video>
+    </div>
+    <div id="main">
+        <input type="button" id="btAdd" value="Text Translation" class="bt" />
+       
+    </div>
+    <div class = "tex">
+    </div>
+    <div class="right"> 
+
+      
+        <div id="stopButton" class="button"> Stop </div>
+
+        <h2>Recording</h2>
+
+        <video id="recording" width="400" height="300" controls></video>
+
+        <a id="downloadButton" onclick="textToSpeech()" class="button"> Speech Translation   </a> 
+    </div>
+
+    <div class="bottom">  <pre id="log"></pre> </div>
+
+
+    <script>
+
+        let preview = document.getElementById("preview");
+        let recording = document.getElementById("recording");
+        let startButton = document.getElementById("startButton");
+        let stopButton = document.getElementById("stopButton");
+        let downloadButton = document.getElementById("downloadButton");
+        let upl = document.getElementById("convert");
+        let logElement = document.getElementById("log");
+
+        let recordingTimeMS = 5000;
+         function log(msg) {
+          logElement.innerHTML += msg + "\n";
+        }
+         function wait(delayInMS) {
+          return new Promise(resolve => setTimeout(resolve, delayInMS));
+        }
+         function startRecording(stream, lengthInMS) {
+          let recorder = new MediaRecorder(stream);
+          let data = [];
+
+          recorder.ondataavailable = event => data.push(event.data);
+          recorder.start();
+          log(recorder.state + " for " + (lengthInMS/1000) + " seconds...");
+             recorder.addEventListener('dataavailable', function(event) { 
+            console.log(recorder.state); 
+            w3simulateClick(stopButton, 'click');
+            });
+          let stopped = new Promise((resolve, reject) => {
+            recorder.onstop = resolve;
+            recorder.onerror = event => reject(event.name);
+          });
+
+          let recorded = wait(lengthInMS).then(
+            () => recorder.state == "recording" && recorder.stop()
+          )
+
+          return Promise.all([
+            stopped,
+            recorded
+          ])
+          .then(() => data);
+        }
+         function stop(stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+         startButton.addEventListener("click", function() {
+          navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+          }).then(stream => {
+            preview.srcObject = stream;
+            downloadButton.href = stream;
+            preview.captureStream = preview.captureStream || preview.mozCaptureStream;
+            return new Promise(resolve => preview.onplaying = resolve);
+          }).then(() => startRecording(preview.captureStream(), recordingTimeMS))
+          .then (recordedChunks => {
+            let recordedBlob = new Blob(recordedChunks, { type: "video/mp4" });
+            recording.src = URL.createObjectURL(recordedBlob);
+            downloadButton.href = recording.src;
+            downloadButton.download = "RecordedVideo.webm";
+
+
+       
+
+
+          })
+          .catch(log);
+        }, false); stopButton.addEventListener("click", function() {
+          stop(preview.srcObject);
+        }, false);
+    function textToSpeech() 
+	{
+	var available_voices = window.speechSynthesis.getVoices();
+
+	// this will hold an english voice
+	var english_voice = '';
+
+	// find voice by language locale "en-US"
+	// if not then select the first voice
+	for(var i=0; i<available_voices.length; i++) {
+		if(available_voices[i].lang === 'en-US') {
+			english_voice = available_voices[i];
+			break;
+		}
+	}
+	if(english_voice === '')
+		english_voice = available_voices[0];
+
+	// new SpeechSynthesisUtterance object
+	var utter = new SpeechSynthesisUtterance();
+	utter.rate = 1;
+	utter.pitch = 0.8;
+	utter.text = '1';
+	utter.voice = english_voice;
+
+	// event after text has been spoken
+	utter.onend = function() {
+		alert('Speech has finished');
+	}
+
+	// speak
+	window.speechSynthesis.speak(utter);
+	
+  }
+  
+
+        function w3simulateClick(el) {
+          var event = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true
+          });
+
+
+        }
+        function run(){
+          $.get("http://localhost:5000/recognize_gesture", function(output) {
+            var word = JSON.parse(output)["word"]
+            var speech = "Your word is " + word
+            var msg = new SpeechSynthesisUtterance(speech);
+            window.speechSynthesis.speak(msg);
+            window.close();
+            alert(speech);
+            });
+        }
+
+       
+
+          $(document).ready(function() {
+        var iCnt = 0;
+        
+        // Create a DIV and style it using .css() method.
+        var container = $(document.createElement('div')).css({
+           
+        });
+
+        $('#btAdd').click(function() {
+            if (iCnt <= 19) {
+
+                iCnt = iCnt + 1;
+
+                // Add textbox.
+                $(container).append('<input type=text class="tex" id=tb' + iCnt + ' ' +  'value=" ' + iCnt + '" />');
+                    
+                // Show SUBMIT button if atleast 1 element is created.
+                if (iCnt == 1) {
+                    var divSubmit = $(document.createElement('div'));
+                   
+                }
+
+                // Add both DIVs to the main container.
+                $('#main').after(container, divSubmit);
+            }
+            // After reaching the specified limit,
+            // disable the ADD button. (20 is the limit)
+            else {      
+                $(container).append('<label>Reached the limit</label>'); 
+                $('#btAdd').attr('class', 'bt-disable'); 
+                $('#btAdd').attr('disabled', 'disabled');
+            }
+        });
+
+        // REMOVE ONE ELEMENT PER CLICK.
+        $('#btRemove').click(function() {
+            if (iCnt != 0) { $('#tb' + iCnt).remove(); iCnt = iCnt - 1; }
+        
+            if (iCnt == 0) { 
+                $(container)
+                    .empty() 
+                    .remove(); 
+
+                $('#btSubmit').remove(); 
+                $('#btAdd')
+                    .removeAttr('disabled') 
+                    .attr('class', 'bt');
+            }
+        });
+
+        // REMOVE ALL THE ELEMENTS IN THE CONTAINER.
+        $('#btRemoveAll').click(function() {
+            $(container)
+                .empty()
+                .remove(); 
+
+            $('#btSubmit').remove(); 
+            iCnt = 0; 
+            
+            $('#btAdd')
+                .removeAttr('disabled') 
+                .attr('class', 'bt');
+        });
+    });
+
+    // PICK THE VALUES FROM EACH TEXTBOX WHEN "SUBMIT" BUTTON IS CLICKED.
+    var divValue, values = '';
+
+    function GetTextValue() {
+        $(divValue) 
+            .empty() 
+            .remove(); 
+        
+        values = '';
+
+        $('.input').each(function() {
+            divValue = $(document.createElement('div')).css({
+                padding:'5px', width:'200px'
+            });
+            values += this.value + '<br />'
+        });
+
+        $(divValue).append('<p><b>Your selected values</b></p>' + values);
+        $('body').append(divValue);
+    }
+
+
+    </script>
+
+
+  </body>
+
+</html>
